@@ -91,7 +91,13 @@ Observações: ${observations || "-"}`.trim();
       setAiError(null);
       
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        // Fix: Use process.env.API_KEY to get the API key as per the guidelines.
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+          // Fix: Updated error message to reflect the correct environment variable.
+          throw new Error("Chave de API não configurada. A variável de ambiente API_KEY precisa ser definida.");
+        }
+        const ai = new GoogleGenAI({ apiKey });
         
         const { finalPrice, installmentText, deliveryDateStr, effectiveDiscount } = calculations;
         
@@ -128,9 +134,9 @@ Observações: ${observations || "-"}`.trim();
         } else {
             throw new Error("A IA não retornou um texto válido.");
         }
-      } catch (error) {
+      } catch (error: any) {
           console.error("AI script generation error:", error);
-          setAiError("Falha ao gerar o script com IA. Verifique sua chave de API e tente novamente.");
+          setAiError(error.message || "Falha ao gerar o script com IA. Verifique sua chave de API e tente novamente.");
       } finally {
           setIsAiGenerating(false);
       }
@@ -151,7 +157,7 @@ Observações: ${observations || "-"}`.trim();
 
       const response = await fetch('/templates/modelo_revisao.docx');
       if (!response.ok) {
-        throw new Error(`Modelo não encontrado em '/templates/modelo_revisao.docx'. Crie a pasta 'templates' na raiz do projeto e adicione o arquivo.`);
+        throw new Error(`Modelo não encontrado em '/templates/modelo_revisao.docx'. Crie a pasta 'public/templates' na raiz do projeto e adicione o arquivo.`);
       }
       const templateBlob = await response.arrayBuffer();
       const zip = new PizZip(templateBlob);

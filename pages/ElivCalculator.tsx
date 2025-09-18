@@ -104,7 +104,13 @@ Observações: ${observations || "-"}`.trim();
         setAiError(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            // Fix: Use process.env.API_KEY to get the API key as per the guidelines.
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) {
+              // Fix: Updated error message to reflect the correct environment variable.
+              throw new Error("Chave de API não configurada. A variável de ambiente API_KEY precisa ser definida.");
+            }
+            const ai = new GoogleGenAI({ apiKey });
             const { finalPrice, paymentText, effectiveDiscountPercent, totalDiscountAmount } = calculations;
             
             const prompt = `
@@ -145,9 +151,9 @@ Observações: ${observations || "-"}`.trim();
             } else {
                 throw new Error("A IA não retornou um texto válido.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("AI script generation error:", error);
-            setAiError("Falha ao gerar o script com IA. Verifique sua chave de API e tente novamente.");
+            setAiError(error.message || "Falha ao gerar o script com IA. Verifique sua chave de API e tente novamente.");
         } finally {
             setIsAiGenerating(false);
         }
