@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { Card } from '../components/Card';
 import { Input, TextArea, Select, Slider } from '../components/Input';
 import { Metric } from '../components/Metric';
@@ -104,13 +103,6 @@ Observações: ${observations || "-"}`.trim();
         setAiError(null);
 
         try {
-            // Fix: Use process.env.API_KEY to get the API key as per the guidelines.
-            const apiKey = process.env.API_KEY;
-            if (!apiKey) {
-              // Fix: Updated error message to reflect the correct environment variable.
-              throw new Error("Chave de API não configurada. A variável de ambiente API_KEY precisa ser definida.");
-            }
-            const ai = new GoogleGenAI({ apiKey });
             const { finalPrice, paymentText, effectiveDiscountPercent, totalDiscountAmount } = calculations;
             
             const prompt = `
@@ -139,13 +131,22 @@ Observações: ${observations || "-"}`.trim();
             3.  **Clareza:** Seja transparente sobre valores e condições. Evite jargões complexos da indústria editorial.
             4.  **Não invente informações:** Baseie-se estritamente nos dados fornecidos.
             `;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
+            
+            const apiResponse = await fetch('/api/generate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ prompt }),
             });
 
-            const text = response.text;
+            if (!apiResponse.ok) {
+              const errorData = await apiResponse.json();
+              throw new Error(errorData.error || `Request failed with status ${apiResponse.status}`);
+            }
+
+            const { text } = await apiResponse.json();
+
             if (text) {
                 setSalesScript(text.trim());
             } else {
@@ -153,7 +154,7 @@ Observações: ${observations || "-"}`.trim();
             }
         } catch (error: any) {
             console.error("AI script generation error:", error);
-            setAiError(error.message || "Falha ao gerar o script com IA. Verifique sua chave de API e tente novamente.");
+            setAiError(error.message || "Falha ao gerar o script com IA. Verifique sua conexão e tente novamente.");
         } finally {
             setIsAiGenerating(false);
         }

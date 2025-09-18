@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { Card } from '../components/Card';
 import { Input, TextArea } from '../components/Input';
 import { Toggle } from '../components/Toggle';
@@ -56,7 +55,7 @@ const RevisionCalculator: React.FC = () => {
       installmentText,
       effectiveDiscount: applyDiscount && discountPercentage > 0
     };
-  }, [wordCount, pricePerWord, applyDiscount, discountPercentage, installments]);
+  }, [wordCount, pricePerWord, applyDiscount, discountPercentage, installments, deliveryDays]);
   
   useEffect(() => {
     const { basePrice, discountAmount, finalPrice, installmentText, quoteDateStr, deliveryDateStr, effectiveDiscount } = calculations;
@@ -91,14 +90,6 @@ Observações: ${observations || "-"}`.trim();
       setAiError(null);
       
       try {
-        // Fix: Use process.env.API_KEY to get the API key as per the guidelines.
-        const apiKey = process.env.API_KEY;
-        if (!apiKey) {
-          // Fix: Updated error message to reflect the correct environment variable.
-          throw new Error("Chave de API não configurada. A variável de ambiente API_KEY precisa ser definida.");
-        }
-        const ai = new GoogleGenAI({ apiKey });
-        
         const { finalPrice, installmentText, deliveryDateStr, effectiveDiscount } = calculations;
         
         const prompt = `
@@ -122,13 +113,22 @@ Observações: ${observations || "-"}`.trim();
         3.  **Clareza:** Evite jargões. Seja direto e transparente sobre os valores e prazos.
         4.  **Não invente informações:** Baseie-se estritamente nos dados fornecidos.
         `;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
         
-        const text = response.text;
+        const apiResponse = await fetch('/api/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prompt }),
+        });
+
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json();
+          throw new Error(errorData.error || `Request failed with status ${apiResponse.status}`);
+        }
+        
+        const { text } = await apiResponse.json();
+        
         if (text) {
             setSalesScript(text.trim());
         } else {
@@ -136,7 +136,7 @@ Observações: ${observations || "-"}`.trim();
         }
       } catch (error: any) {
           console.error("AI script generation error:", error);
-          setAiError(error.message || "Falha ao gerar o script com IA. Verifique sua chave de API e tente novamente.");
+          setAiError(error.message || "Falha ao gerar o script com IA. Verifique sua conexão e tente novamente.");
       } finally {
           setIsAiGenerating(false);
       }
